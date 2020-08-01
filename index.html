@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Minecraft skin editor</title>
+<meta charset="utf-8"/>
+</head>
+<body>
+<style>
+canvas{
+pointer-events: none;
+}
+#colorMaster{
+position:fixed;
+top:0px;
+right:0px;
+}
+#parent{
+position:relative;
+top:0px;
+left:0px;
+}
+.mainCanvases{
+position:absolute;
+top:0px;
+left:0px;
+}
+</style>
+<div id="parent">
+<canvas id="canvas" width="690" height="1840" class="mainCanvases"></canvas>
+<canvas id="grid" width="690" height="1840" class="mainCanvases"></canvas>
+<canvas id="pointerCanvas" width="690" height="1840" class="mainCanvases"></canvas>
+</div>
+<canvas id="toDownload" width="64" height="64" style="display:none"></canvas>
+<div id="colorMaster">
+<p>r:<input type="range" min="0" max="255" onchange="colorChange()" id="red" value="0"/></p>
+<p>g:<input type="range" min="0" max="255" onchange="colorChange()" id="green" value="0"/></p>
+<p>b:<input type="range" min="0" max="255" onchange="colorChange()" id="blue" value="0"/></p>
+<p>size:<input type="range" min="0" max="2" onchange="colorChange()" id="size" value="0"/></p>
+<p><img src="pen.jpg" width="50" height="50" onclick="pen()" id="pen"/></p>
+<p><img src="picker.jpg" width="50" height="50" onclick="picker()" id="picker"/></p>
+<p><img src="eraser.jpg" width="50" height="50" onclick="eraser()" id="picker"/></p>
+<canvas id="colorP"width="50" height="50"></canvas>
+<p><img id="img"/></p>
+</div>
+<canvas id="to3Dtexture" style="display:none"></canvas>
+<script src="three.min.js"></script>
+<script src="TextureLoader.js"></script>
+<script>
+"use strict"
+let canvas=document.getElementById("canvas");
+let ctx=canvas.getContext("2d");
+let mouseEffect=false,color,colorP=document.getElementById("colorP").getContext("2d"),masterTime=false,sizeOfPen,effectOfPen="pen",pickerData,
+toDownloadData=[[100,8,8,8,0,0,32,0],
+[440,8,12,4,16,16,16,32],
+[740,3,12,4,40,16,40,32],
+[1040,3,12,4,32,48,48,48],
+[1340,4,12,4,0,16,0,32],
+[1640,4,12,4,16,48,0,48],
+],
+timer=NaN;
+
+//about three.js
+let renderer=new THREE.WebGLRenderer(),scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(60,2/3,1,1000),loader=new THREE.TextureLoader(),mat=new THREE.MeshBasicMaterial({color:0x888888}),geo=new THREE.CubeGeometry(80,80),head=new THREE.Mesh(geo,mat);
+//scene.add(head);
+renderer.setSize(150,225);
+document.getElementById("colorMaster").appendChild(renderer.domElement);
+camera.position.z+=400;
+renderer.render(scene,camera);
+//y座標,x,y,z,コピー先x,コピー先y,コピー先x2,コピー先y2
+let grid=document.getElementById("grid").getContext("2d");
+let pointerCanvas=document.getElementById("pointerCanvas").getContext("2d");
+ctx.textAlign="left";
+ctx.font="40px serif";
+let toDownload=document.getElementById("toDownload").getContext("2d");
+//toDownload.scale(1/10,1/10);
+//timer.setInterval(tick,100/3);                   tick for render
+function draw(){
+ctx.clearRect(0,0,690,1840);
+ctx.fillText("head",0,70);
+ctx.fillText("head2",350,70);
+ctx.fillText("body",0,410);
+ctx.fillText("body2",350,410);
+ctx.fillText("right arm",0,710);
+ctx.fillText("right arm2",350,710);
+ctx.fillText("left arm",0,1010);
+ctx.fillText("left arm2",350,1010);
+ctx.fillText("right leg",0,1310);
+ctx.fillText("right leg2",350,1310);
+ctx.fillText("left leg",0,1610);
+ctx.fillText("left leg2",350,1610);
+colorChange();
+grid.strokeStyle="#888888";
+for(let j=0;j<184;j++){
+for(let i=0;i<69;i++){
+if(i*10>=0&&i*10<=319&&j*10>=180&&j*10<=259||i*10>=80&&i*10<=159&&j*10>=100&&j*10<=339||
+i*10>=350&&i*10<=669&&j*10>=180&&j*10<=259||i*10>=430&&i*10<=509&&j*10>=100&&j*10<=339||
+i*10>=0&&i*10<=239&&j*10>=480&&j*10<=599||i*10>=40&&i*10<=119&&j*10>=440&&j*10<=639||
+i*10>=350&&i*10<=589&&j*10>=480&&j*10<=599||i*10>=390&&i*10<=469&&j*10>=440&&j*10<=639||
+i*10>=0&&i*10<=139&&j*10>=780&&j*10<=899||i*10>=40&&i*10<=69&&j*10>=740&&j*10<=939||
+i*10>=350&&i*10<=489&&j*10>=780&&j*10<=899||i*10>=390&&i*10<=419&&j*10>=740&&j*10<=939||
+i*10>=0&&i*10<=139&&j*10>=1080&&j*10<=1199||i*10>=40&&i*10<=69&&j*10>=1040&&j*10<=1239||
+i*10>=350&&i*10<=489&&j*10>=1080&&j*10<=1199||i*10>=390&&i*10<=419&&j*10>=1040&&j*10<=1239||
+i*10>=0&&i*10<=159&&j*10>=1380&&j*10<=1499||i*10>=40&&i*10<=79&&j*10>=1340&&j*10<=1539||
+i*10>=350&&i*10<=509&&j*10>=1380&&j*10<=1499||i*10>=390&&i*10<=429&&j*10>=1340&&j*10<=1539||
+i*10>=0&&i*10<=159&&j*10>=1680&&j*10<=1799||i*10>=40&&i*10<=79&&j*10>=1640&&j*10<=1839||
+i*10>=350&&i*10<=509&&j*10>=1680&&j*10<=1799||i*10>=390&&i*10<=429&&j*10>=1640&&j*10<=1839){
+grid.strokeRect(i*10,j*10,10,10);
+pointerCanvas.strokeStyle="orange";
+}
+}
+}
+}
+onload=draw;
+onmousemove=secondDraw;
+function secondDraw(e){
+pointerCanvas.clearRect(0,0,690,1840);
+if(e.offsetX>=0&&e.offsetX<=319&&e.offsetY>=180&&e.offsetY<=259||e.offsetX>=80&&e.offsetX<=159&&e.offsetY>=100&&e.offsetY<=339||
+e.offsetX>=350&&e.offsetX<=669&&e.offsetY>=180&&e.offsetY<=259||e.offsetX>=430&&e.offsetX<=509&&e.offsetY>=100&&e.offsetY<=339||
+e.offsetX>=0&&e.offsetX<=239&&e.offsetY>=480&&e.offsetY<=599||e.offsetX>=40&&e.offsetX<=119&&e.offsetY>=440&&e.offsetY<=639||
+e.offsetX>=350&&e.offsetX<=589&&e.offsetY>=480&&e.offsetY<=599||e.offsetX>=390&&e.offsetX<=469&&e.offsetY>=440&&e.offsetY<=639||
+e.offsetX>=0&&e.offsetX<=139&&e.offsetY>=780&&e.offsetY<=899||e.offsetX>=40&&e.offsetX<=69&&e.offsetY>=740&&e.offsetY<=939||
+e.offsetX>=350&&e.offsetX<=489&&e.offsetY>=780&&e.offsetY<=899||e.offsetX>=390&&e.offsetX<=419&&e.offsetY>=740&&e.offsetY<=939||
+e.offsetX>=0&&e.offsetX<=139&&e.offsetY>=1080&&e.offsetY<=1199||e.offsetX>=40&&e.offsetX<=69&&e.offsetY>=1040&&e.offsetY<=1239||
+e.offsetX>=350&&e.offsetX<=489&&e.offsetY>=1080&&e.offsetY<=1199||e.offsetX>=390&&e.offsetX<=419&&e.offsetY>=1040&&e.offsetY<=1239||
+e.offsetX>=0&&e.offsetX<=159&&e.offsetY>=1380&&e.offsetY<=1499||e.offsetX>=40&&e.offsetX<=79&&e.offsetY>=1340&&e.offsetY<=1539||
+e.offsetX>=350&&e.offsetX<=509&&e.offsetY>=1380&&e.offsetY<=1499||e.offsetX>=390&&e.offsetX<=429&&e.offsetY>=1340&&e.offsetY<=1539||
+e.offsetX>=0&&e.offsetX<=159&&e.offsetY>=1680&&e.offsetY<=1799||e.offsetX>=40&&e.offsetX<=79&&e.offsetY>=1640&&e.offsetY<=1839||
+e.offsetX>=350&&e.offsetX<=509&&e.offsetY>=1680&&e.offsetY<=1799||e.offsetX>=390&&e.offsetX<=429&&e.offsetY>=1640&&e.offsetY<=1839){
+if(mouseEffect){
+switch(effectOfPen){
+case "pen":
+for(let i=-sizeOfPen;i<sizeOfPen+1;i++){
+for(let j=-sizeOfPen;j<sizeOfPen+1;j++){
+if(e.offsetX+i*10>=0&&e.offsetX+i*10<=319&&e.offsetY+j*10>=180&&e.offsetY+j*10<=259||e.offsetX+i*10>=80&&e.offsetX+i*10<=159&&e.offsetY+j*10>=100&&e.offsetY+j*10<=339||
+e.offsetX+i*10>=350&&e.offsetX+i*10<=669&&e.offsetY+j*10>=180&&e.offsetY+j*10<=259||e.offsetX+i*10>=430&&e.offsetX+i*10<=509&&e.offsetY+j*10>=100&&e.offsetY+j*10<=339||
+e.offsetX+i*10>=0&&e.offsetX+i*10<=239&&e.offsetY+j*10>=480&&e.offsetY+j*10<=599||e.offsetX+i*10>=40&&e.offsetX+i*10<=119&&e.offsetY+j*10>=440&&e.offsetY+j*10<=639||
+e.offsetX+i*10>=350&&e.offsetX+i*10<=589&&e.offsetY+j*10>=480&&e.offsetY+j*10<=599||e.offsetX+i*10>=390&&e.offsetX+i*10<=469&&e.offsetY+j*10>=440&&e.offsetY+j*10<=639||
+e.offsetX+i*10>=0&&e.offsetX+i*10<=139&&e.offsetY+j*10>=780&&e.offsetY+j*10<=899||e.offsetX+i*10>=40&&e.offsetX+i*10<=69&&e.offsetY+j*10>=740&&e.offsetY+j*10<=939||
+e.offsetX+i*10>=350&&e.offsetX+i*10<=489&&e.offsetY+j*10>=780&&e.offsetY+j*10<=899||e.offsetX+i*10>=390&&e.offsetX+i*10<=419&&e.offsetY+j*10>=740&&e.offsetY+j*10<=939||
+e.offsetX+i*10>=0&&e.offsetX+i*10<=139&&e.offsetY+j*10>=1080&&e.offsetY+j*10<=1199||e.offsetX+i*10>=40&&e.offsetX+i*10<=69&&e.offsetY+j*10>=1040&&e.offsetY+j*10<=1239||
+e.offsetX+i*10>=350&&e.offsetX+i*10<=489&&e.offsetY+j*10>=1080&&e.offsetY+j*10<=1199||e.offsetX+i*10>=390&&e.offsetX+i*10<=419&&e.offsetY+j*10>=1040&&e.offsetY+j*10<=1239||
+e.offsetX+i*10>=0&&e.offsetX+i*10<=159&&e.offsetY+j*10>=1380&&e.offsetY+j*10<=1499||e.offsetX+i*10>=40&&e.offsetX+i*10<=79&&e.offsetY+j*10>=1340&&e.offsetY+j*10<=1539||
+e.offsetX+i*10>=350&&e.offsetX+i*10<=509&&e.offsetY+j*10>=1380&&e.offsetY+j*10<=1499||e.offsetX+i*10>=390&&e.offsetX+i*10<=429&&e.offsetY+j*10>=1340&&e.offsetY+j*10<=1539||
+e.offsetX+i*10>=0&&e.offsetX+i*10<=159&&e.offsetY+j*10>=1680&&e.offsetY+j*10<=1799||e.offsetX+i*10>=40&&e.offsetX+i*10<=79&&e.offsetY+j*10>=1640&&e.offsetY+j*10<=1839||
+e.offsetX+i*10>=350&&e.offsetX+i*10<=509&&e.offsetY+j*10>=1680&&e.offsetY+j*10<=1799||e.offsetX+i*10>=390&&e.offsetX+i*10<=429&&e.offsetY+j*10>=1640&&e.offsetY+j*10<=1839){
+ctx.fillRect(Math.floor(e.offsetX/10)*10+i*10,Math.floor(e.offsetY/10)*10+j*10,10,10);
+}
+}
+}
+break;
+case "picker":
+console.log(ctx.getImageData(Math.floor(e.offsetX/10)*10,Math.floor(e.offsetY/10)*10,1,1).data);
+pickerData=ctx.getImageData(Math.floor(e.offsetX/10)*10,Math.floor(e.offsetY/10)*10,1,1).data;
+document.getElementById("red").value=pickerData[0];
+document.getElementById("green").value=pickerData[1];
+document.getElementById("blue").value=pickerData[2];
+colorChange();
+pen();
+break;
+case "eraser":
+for(let i=-sizeOfPen;i<sizeOfPen+1;i++){
+for(let j=-sizeOfPen;j<sizeOfPen+1;j++){
+if(e.offsetX+i*10>=0&&e.offsetX+i*10<=319&&e.offsetY+j*10>=180&&e.offsetY+j*10<=259||e.offsetX+i*10>=80&&e.offsetX+i*10<=159&&e.offsetY+j*10>=100&&e.offsetY+j*10<=339||
+e.offsetX+i*10>=350&&e.offsetX+i*10<=669&&e.offsetY+j*10>=180&&e.offsetY+j*10<=259||e.offsetX+i*10>=430&&e.offsetX+i*10<=509&&e.offsetY+j*10>=100&&e.offsetY+j*10<=339||
+e.offsetX+i*10>=0&&e.offsetX+i*10<=239&&e.offsetY+j*10>=480&&e.offsetY+j*10<=599||e.offsetX+i*10>=40&&e.offsetX+i*10<=119&&e.offsetY+j*10>=440&&e.offsetY+j*10<=639||
+e.offsetX+i*10>=350&&e.offsetX+i*10<=589&&e.offsetY+j*10>=480&&e.offsetY+j*10<=599||e.offsetX+i*10>=390&&e.offsetX+i*10<=469&&e.offsetY+j*10>=440&&e.offsetY+j*10<=639||
+e.offsetX+i*10>=0&&e.offsetX+i*10<=139&&e.offsetY+j*10>=780&&e.offsetY+j*10<=899||e.offsetX+i*10>=40&&e.offsetX+i*10<=69&&e.offsetY+j*10>=740&&e.offsetY+j*10<=939||
+e.offsetX+i*10>=350&&e.offsetX+i*10<=489&&e.offsetY+j*10>=780&&e.offsetY+j*10<=899||e.offsetX+i*10>=390&&e.offsetX+i*10<=419&&e.offsetY+j*10>=740&&e.offsetY+j*10<=939||
+e.offsetX+i*10>=0&&e.offsetX+i*10<=139&&e.offsetY+j*10>=1080&&e.offsetY+j*10<=1199||e.offsetX+i*10>=40&&e.offsetX+i*10<=69&&e.offsetY+j*10>=1040&&e.offsetY+j*10<=1239||
+e.offsetX+i*10>=350&&e.offsetX+i*10<=489&&e.offsetY+j*10>=1080&&e.offsetY+j*10<=1199||e.offsetX+i*10>=390&&e.offsetX+i*10<=419&&e.offsetY+j*10>=1040&&e.offsetY+j*10<=1239||
+e.offsetX+i*10>=0&&e.offsetX+i*10<=159&&e.offsetY+j*10>=1380&&e.offsetY+j*10<=1499||e.offsetX+i*10>=40&&e.offsetX+i*10<=79&&e.offsetY+j*10>=1340&&e.offsetY+j*10<=1539||
+e.offsetX+i*10>=350&&e.offsetX+i*10<=509&&e.offsetY+j*10>=1380&&e.offsetY+j*10<=1499||e.offsetX+i*10>=390&&e.offsetX+i*10<=429&&e.offsetY+j*10>=1340&&e.offsetY+j*10<=1539||
+e.offsetX+i*10>=0&&e.offsetX+i*10<=159&&e.offsetY+j*10>=1680&&e.offsetY+j*10<=1799||e.offsetX+i*10>=40&&e.offsetX+i*10<=79&&e.offsetY+j*10>=1640&&e.offsetY+j*10<=1839||
+e.offsetX+i*10>=350&&e.offsetX+i*10<=509&&e.offsetY+j*10>=1680&&e.offsetY+j*10<=1799||e.offsetX+i*10>=390&&e.offsetX+i*10<=429&&e.offsetY+j*10>=1640&&e.offsetY+j*10<=1839){
+ctx.clearRect(Math.floor(e.offsetX/10)*10+i*10,Math.floor(e.offsetY/10)*10+j*10,10,10);
+}
+}
+}
+break;
+}
+}
+pointerCanvas.strokeRect(Math.floor(e.offsetX/10)*10,Math.floor(e.offsetY/10)*10,10,10);
+}
+}
+onmousedown=function(e){
+if(masterTime){
+console.log("It's master time!!");
+}else{
+mouseEffect=true;
+secondDraw(e);
+}
+}
+onmouseup=()=> mouseEffect=false;
+function colorChange(){
+color=`#${hex(document.getElementById("red").value)}${hex(document.getElementById("green").value)}${hex(document.getElementById("blue").value)}`;
+ctx.fillStyle=color;
+colorP.fillStyle=color;
+colorP.fillRect(0,0,50,50);
+sizeOfPen=parseInt(document.getElementById("size").value);
+}
+onkeydown=function(){                                                                                                                    //copytest
+for(let k=0;k<toDownloadData.length;k++){
+var a=ctx.getImageData(toDownloadData[k][3]*10,toDownloadData[k][0],toDownloadData[k][1]*10,toDownloadData[k][3]*10);                                      //top
+var copiedImageData=new ImageData(toDownloadData[k][1],toDownloadData[k][3]);
+for(let i=0;i<copiedImageData.height;i++){
+for(let j=0;j<copiedImageData.width;j++){
+copiedImageData.data[(i*copiedImageData.width+j)*4]=a.data[i*copiedImageData.width*400+j*40];
+copiedImageData.data[(i*copiedImageData.width+j)*4+1]=a.data[i*copiedImageData.width*400+j*40+1];
+copiedImageData.data[(i*copiedImageData.width+j)*4+2]=a.data[i*copiedImageData.width*400+j*40+2];
+copiedImageData.data[(i*copiedImageData.width+j)*4+3]=a.data[i*copiedImageData.width*400+j*40+3];
+}
+}
+toDownload.putImageData(copiedImageData,toDownloadData[k][4]+toDownloadData[k][3],toDownloadData[k][5]);                                                                                           //for sides
+var a=ctx.getImageData(0,toDownloadData[k][0]+toDownloadData[k][3]*10,(toDownloadData[k][1]+toDownloadData[k][3])*20,toDownloadData[k][2]*10);
+var copiedImageData=new ImageData((toDownloadData[k][1]+toDownloadData[k][3])*2,toDownloadData[k][2]);
+for(let i=0;i<copiedImageData.height;i++){
+for(let j=0;j<copiedImageData.width;j++){
+copiedImageData.data[(i*copiedImageData.width+j)*4]=a.data[i*copiedImageData.width*400+j*40];
+copiedImageData.data[(i*copiedImageData.width+j)*4+1]=a.data[i*copiedImageData.width*400+j*40+1];
+copiedImageData.data[(i*copiedImageData.width+j)*4+2]=a.data[i*copiedImageData.width*400+j*40+2];
+copiedImageData.data[(i*copiedImageData.width+j)*4+3]=a.data[i*copiedImageData.width*400+j*40+3];
+}
+}
+toDownload.putImageData(copiedImageData,toDownloadData[k][4],toDownloadData[k][5]+toDownloadData[k][3]);
+var a=ctx.getImageData(toDownloadData[k][3]*10,toDownloadData[k][0]+(toDownloadData[k][2]+toDownloadData[k][3])*10,toDownloadData[k][1]*10,toDownloadData[k][3]*10);                                      //bottom bottomのfor文は逆向きにコピーさせるため特殊になっている
+var copiedImageData=new ImageData(toDownloadData[k][1],toDownloadData[k][3]);
+for(let i=0;i<copiedImageData.height;i++){
+for(let j=0;j<copiedImageData.width;j++){
+copiedImageData.data[((copiedImageData.height-1-i)*copiedImageData.width+j)*4]=a.data[i*copiedImageData.width*400+j*40];
+copiedImageData.data[((copiedImageData.height-1-i)*copiedImageData.width+j)*4+1]=a.data[i*copiedImageData.width*400+j*40+1];
+copiedImageData.data[((copiedImageData.height-1-i)*copiedImageData.width+j)*4+2]=a.data[i*copiedImageData.width*400+j*40+2];
+copiedImageData.data[((copiedImageData.height-1-i)*copiedImageData.width+j)*4+3]=a.data[i*copiedImageData.width*400+j*40+3];
+}
+}
+toDownload.putImageData(copiedImageData,toDownloadData[k][4]+toDownloadData[k][3]+toDownloadData[k][1],toDownloadData[k][5]);
+
+var a=ctx.getImageData(350+toDownloadData[k][3]*10,toDownloadData[k][0],toDownloadData[k][1]*10,toDownloadData[k][3]*10);                                      //top   layer2
+var copiedImageData=new ImageData(toDownloadData[k][1],toDownloadData[k][3]);
+for(let i=0;i<copiedImageData.height;i++){
+for(let j=0;j<copiedImageData.width;j++){
+copiedImageData.data[(i*copiedImageData.width+j)*4]=a.data[i*copiedImageData.width*400+j*40];
+copiedImageData.data[(i*copiedImageData.width+j)*4+1]=a.data[i*copiedImageData.width*400+j*40+1];
+copiedImageData.data[(i*copiedImageData.width+j)*4+2]=a.data[i*copiedImageData.width*400+j*40+2];
+copiedImageData.data[(i*copiedImageData.width+j)*4+3]=a.data[i*copiedImageData.width*400+j*40+3];
+}
+}
+toDownload.putImageData(copiedImageData,toDownloadData[k][6]+toDownloadData[k][3],toDownloadData[k][7]);                                                                                           //for sides
+var a=ctx.getImageData(350,toDownloadData[k][0]+toDownloadData[k][3]*10,(toDownloadData[k][1]+toDownloadData[k][3])*20,toDownloadData[k][2]*10);
+var copiedImageData=new ImageData((toDownloadData[k][1]+toDownloadData[k][3])*2,toDownloadData[k][2]);
+for(let i=0;i<copiedImageData.height;i++){
+for(let j=0;j<copiedImageData.width;j++){
+copiedImageData.data[(i*copiedImageData.width+j)*4]=a.data[i*copiedImageData.width*400+j*40];
+copiedImageData.data[(i*copiedImageData.width+j)*4+1]=a.data[i*copiedImageData.width*400+j*40+1];
+copiedImageData.data[(i*copiedImageData.width+j)*4+2]=a.data[i*copiedImageData.width*400+j*40+2];
+copiedImageData.data[(i*copiedImageData.width+j)*4+3]=a.data[i*copiedImageData.width*400+j*40+3];
+}
+}
+toDownload.putImageData(copiedImageData,toDownloadData[k][6],toDownloadData[k][3]+toDownloadData[k][7]);
+var a=ctx.getImageData(350+toDownloadData[k][3]*10,toDownloadData[k][0]+(toDownloadData[k][2]+toDownloadData[k][3])*10,toDownloadData[k][1]*10,toDownloadData[k][3]*10);                                      //bottom bottomのfor文は逆向きにコピーさせるため特殊になっている
+var copiedImageData=new ImageData(toDownloadData[k][1],toDownloadData[k][3]);
+for(let i=0;i<copiedImageData.height;i++){
+for(let j=0;j<copiedImageData.width;j++){
+copiedImageData.data[((copiedImageData.height-1-i)*copiedImageData.width+j)*4]=a.data[i*copiedImageData.width*400+j*40];
+copiedImageData.data[((copiedImageData.height-1-i)*copiedImageData.width+j)*4+1]=a.data[i*copiedImageData.width*400+j*40+1];
+copiedImageData.data[((copiedImageData.height-1-i)*copiedImageData.width+j)*4+2]=a.data[i*copiedImageData.width*400+j*40+2];
+copiedImageData.data[((copiedImageData.height-1-i)*copiedImageData.width+j)*4+3]=a.data[i*copiedImageData.width*400+j*40+3];
+}
+}
+toDownload.putImageData(copiedImageData,toDownloadData[k][6]+toDownloadData[k][3]+toDownloadData[k][1],toDownloadData[k][7]);
+}
+
+var skinData=document.getElementById("toDownload").toDataURL("image/png");
+document.getElementById("img").src=skinData;
+document.getElementById("img").width=150;
+document.getElementById("img").height=150;
+ThreeDData();
+}
+function hex(e){
+var dummyNumber=parseInt(e).toString(16);
+dummyNumber=dummyNumber<16?"0"+dummyNumber:dummyNumber;
+return dummyNumber;
+}
+document.getElementById("colorMaster").onmouseover=()=>{
+masterTime=true;
+}
+document.getElementById("colorMaster").onmouseleave=()=>{
+masterTime=false;
+}
+function pen(){
+effectOfPen="pen";
+}
+function picker(){
+effectOfPen="picker";
+}
+function eraser(){
+effectOfPen="eraser";
+}
+/*function tick(){
+
+}*/
+
+
+//未完成　textureをキャンバスからdataurlにして張ろうっていう試み。
+function ThreeDData(){
+var i=0;
+var to3D=document.getElementById("to3Dtexture");
+var to3Dctx=to3D.getContext("2d");
+to3D.width=toDownloadData[i][1]*10;
+to3D.height=toDownloadData[i][2]*10;
+var pz=ctx.getImageData(0+toDownloadData[i][1]*10,toDownloadData[i][0]+toDownloadData[i][3]*10,toDownloadData[i][1]*10,toDownloadData[i][2]*10);
+to3Dctx.putImageData(pz,0,0);
+pz=loader.load(to3D.toDataURL("image/jpg"));
+//var headMaterial=loader.load([pz,pz,pz,pz,pz,pz]);
+console.log(pz);
+//console.log(headMaterial);
+mat=new THREE.MeshBasicMaterial({color:0x888888,map:pz});
+var head=new THREE.Mesh(geo,mat);
+scene.add(head);
+renderer.render(scene,camera);
+}
+
+//一つのcanvasでやった方がよくね？　　tableとgetBoundingClientRect()の使い方も覚えておこう!
+//いや、offsetX便利すぎ、
+//imagedata配列の%10==0の要素のみを抽出する。
+</script>
+</html>
